@@ -23,8 +23,10 @@ file.close()
 # Reading from JSON config END
 
 # Made some changes
-
-#Entering Data base with values from JSON
+ 
+# made new changes 
+ 
+# Entering Data base with values from JSON
 
 client = InfluxDBClient(host=hostName, port=portNum, username=userName , password=userPassword)
 # client = InfluxDBClient(host='hostName', port=portNum, username=userName, password=userPassword ssl=True, verify_ssl=True)
