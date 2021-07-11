@@ -22,6 +22,7 @@ portNum = l_json[3]
 file.close()
 # Reading from JSON config END
 
+# Made some changes
 
 #Entering Data base with values from JSON
 
