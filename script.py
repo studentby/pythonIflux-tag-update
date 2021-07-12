@@ -24,29 +24,39 @@ file.close()
  
 # Entering Data base with values from JSON
 
+# Localy checked connection to DB 
 client = InfluxDBClient(host=hostName, port=portNum, username=userName , password=userPassword)
+
+# More detailed connection configuration: 
 # client = InfluxDBClient(host='hostName', port=portNum, username=userName, password=userPassword ssl=True, verify_ssl=True)
+
+
 database_list = client.get_list_database()
+
 print(database_list)
+
+# Can be changed for user to switch beetween databases
+
 client.switch_database('sitespeed')
-tag_list = list()
+
+
+tag_list = []
+
+# Function forming a query request 
 
 def tags(*TARGkey):
         key_value = list(TARGkey[0])
-        request_list = list()
+        request_list = []
         for i in range(len(key_value)):
-            print(key_value[i])
             join_request = f"\"{key_value[i][0]}\"" + "=" + '\'' + f"{key_value[i][1]}" + '\''
             
-            if i >= 1:
+            if i >= 1:                   
                     and_request = " AND " + join_request
                     print(and_request)
                     request_list.append(and_request)
             else:
-                request_list.append(join_request)    
-        print(request_list)       
+                request_list.append(join_request)         
         join_query = ''.join(request_list)
-        print(join_query)
         print(f"SHOW SERIES WHERE {join_query}")
         print(client.query(f"SHOW SERIES WHERE {join_query}"))
 
@@ -71,26 +81,4 @@ while True:
                 next_tag.append(Tag_user_value)                
         tags_2D.append(next_tag)
         
-        # tag_list.append(Tag_user_value)
-        # print(tag_list)
 tags(tags_2D)
-
-
-# Hard coded way of fix 
-# for i in range(len(tag_list)):
-    # while True:
-    #     Tag_user_key = input("Enter desired Tag key: ")
-    #     tag_list.append(Tag_user_key)
-    # if Tag_user_key == "":
-    #     break
-    # else:
-    #     Tag_user_value= input("Enter desired Tag value: ")
-    #     tag_list.append(Tag_user_value)
-    #     print(tag_list)
-    #     tags(Tag_user_key,Tag_user_value) 
-    
-
-    
-    
-
- 
