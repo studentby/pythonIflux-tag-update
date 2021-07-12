@@ -1,9 +1,4 @@
-{
-  "browsertime": {
-    "iterations": 1,
-    "browser": "chrome"
-  },
-  "influxdb": {
+{"influxdb": {
     "username":"admin",
     "password":"121212",
     "host": "172.20.0.2",

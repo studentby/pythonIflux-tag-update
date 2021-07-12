@@ -1,84 +1,131 @@
 import json  
-import influxdb
+import argparse
 from influxdb import InfluxDBClient
 
-# file_Path = input('Path to file:')
-file_Path = '/home/perf/config.json'
+
+
+
+
+
+## Gathering info from JSON config file:
+
+# Take arguments from terminal
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--config", help="config file absolute path")
+parser.add_argument("--tag_key","--k", action='append',dest='tag_key_list', help="tag key")
+parser.add_argument("--tag_value","--v" ,action='append',dest='tag_value_list' ,help="tag value")
+
+delete_group = parser.add_argument_group('delete_group')
+delete_group.add_argument('--delete', action='store_true',default=False)
+
+update_group = parser.add_argument_group('update_group')
+update_group.add_argument('--update', action='store_true',default=False)
+
+args = parser.parse_args()
+
+
+# file_Path taken from terminal 
+file_Path = args.config
 file = open(file_Path,"r")
 cred = json.loads(file.read())
 
+# Extracting only from InfluxDB tree
+
 pairs = cred["influxdb"].items()
-l_json = list()
-print('  Getting key, value:')
+l_json = []
+# print('  Getting key, value:')
 for key,value in pairs:
     l_json.append(value)
+
+# Taking values from exact position
 
 print(l_json)
 userName = l_json[0]
 userPassword = l_json[1]
 hostName = l_json[2]
 portNum = l_json[3]
+DB_name = l_json[2]
 
 file.close()
 # Reading from JSON config END
- 
-# Entering Data base with values from JSON
+
+## Entering Data base with values from JSON
 
 # Localy checked connection to DB 
 client = InfluxDBClient(host=hostName, port=portNum, username=userName , password=userPassword)
 
-# More detailed connection configuration: 
+# SSL conection: 
 # client = InfluxDBClient(host='hostName', port=portNum, username=userName, password=userPassword ssl=True, verify_ssl=True)
 
 
 database_list = client.get_list_database()
 
-print(database_list)
+# print(database_list)
+
 
 # Can be changed for user to switch beetween databases
-
+print(DB_name)
 client.switch_database('sitespeed')
 
 
-tag_list = []
+# Deletion function
 
-# Function forming a query request 
-
-def tags(*TARGkey):
-        key_value = list(TARGkey[0])
+def tags_delete(TARGkey,TARGval):
+        key = list(TARGkey)
+        value = list(TARGval)
         request_list = []
-        for i in range(len(key_value)):
-            join_request = f"\"{key_value[i][0]}\"" + "=" + '\'' + f"{key_value[i][1]}" + '\''
+        for i in range(len(key)):
+            join_request = f"\"{key[i]}\"" + "=" + '\'' + f"{value[i]}" + '\''
             
             if i >= 1:                   
                     and_request = " AND " + join_request
-                    print(and_request)
                     request_list.append(and_request)
             else:
                 request_list.append(join_request)         
         join_query = ''.join(request_list)
-        print(f"SHOW SERIES WHERE {join_query}")
+        print(join_query)
+        # Show before dropping
         print(client.query(f"SHOW SERIES WHERE {join_query}"))
+        # Drop data series
+        # print("Droping series")
+        # client.query(f"DROP SERIES WHERE {join_query}")
+
+print(args.delete)
+# If --delete flag was added:
+
+if args.delete == True:
+    tags_delete(args.tag_key_list,args.tag_value_list)
+
+# If --update flag was added
+
+# if args.update == True:
+
+
+
+
 
 
 # Gathering user requests
 
-rows = 0
-cols = 1
-tags_2D = []
-while True:
-    Tag_user_key = input("Enter desired Tag key: ")
-    tag_list.append(Tag_user_key)
-    if Tag_user_key == "":
-        break
-    else:
-        Tag_user_value= input("Enter desired Tag value: ")
-        rows =rows + 1
-        for i in range (rows):
-            next_tag = []
-            for j in range(cols):
-                next_tag.append(Tag_user_key)
-                next_tag.append(Tag_user_value)                
-        tags_2D.append(next_tag)
-        
-tags(tags_2D)
+# rows = 0
+# cols = 1
+# tags_2D = []
+# while True:
+#     Tag_user_key = input("Enter desired Tag key: ")
+#     tag_list.append(Tag_user_key)
+#     if Tag_user_key == "":
+#         break
+#     else:
+#         Tag_user_value= input("Enter desired Tag value: ")
+#         rows =rows + 1
+#         for i in range (rows):
+#             next_tag = []
+#             for j in range(cols):
+#                 next_tag.append(Tag_user_key)
+#                 next_tag.append(Tag_user_value)                
+#         tags_2D.append(next_tag)
+
+# Calling a function to make query request 
+# tags(tags_2D)
