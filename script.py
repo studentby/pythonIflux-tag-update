@@ -17,9 +17,13 @@ parser.add_argument("--tag_value","--v" ,action='append',dest='tag_value_list' ,
 delete_group = parser.add_argument_group('delete_group')
 delete_group.add_argument('--delete', action='store_true',default=False)
 
+
 update_group = parser.add_argument_group('update_group')
 update_group.add_argument('--update', action='store_true',default=False)
-
+update_group.add_argument('--insert_key','--ik', action='append', help="update key")
+update_group.add_argument('--insert_value','--iv', action='append', help="update value")
+update_group.add_argument('--insert_field_key','--ifk', help="insert key")
+update_group.add_argument('--insert_field_value','--ifv', help="insert value")
 args = parser.parse_args()
 
 
@@ -83,29 +87,51 @@ def tags_delete(TARGkey,TARGval):
             else:
                 request_list.append(join_request)         
         join_query = ''.join(request_list)
+
+        ## Separate join_query as a function 
+
         # Show before dropping
-        # print(client.query(f"SHOW SERIES WHERE {join_query}"))
+        print(client.query(f"SHOW SERIES WHERE {join_query}"))
 
-        ## need to create separeted function for update operation
-        measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
-        measurement_list = measurements_extract[0]
-        print(len(measurement_list))
-        dictionery_measure = dict()
-        print(measurement_list)
-        l_m = []
-        for l in range(len(measurement_list)):
-            dictionery_measure.update(dict(measurements_extract[0][l]))
-            for key,value in dictionery_measure.items():
-                l_m.append(value)
-            print(l_m)
-
-                # print(dictionery_measure)
 
         # Drop data series
         # client.query(f"DROP SERIES WHERE {join_query}")
-        # print("Droping series executed")
+        print("Droping series executed")
 
 
+## Update function
+
+def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value, field_key, field_val):
+    key = list(TARGkey)
+    value = list(TARGval)
+    request_list = []
+    for i in range(len(key)):
+        join_request = f"\"{key[i]}\"" + "=" + '\'' + f"{value[i]}" + '\''
+
+        if i >= 1:                   
+                and_request = " AND " + join_request
+                request_list.append(and_request)
+        else:
+            request_list.append(join_request)         
+    join_query = ''.join(request_list)
+
+    ## Seperate join_query as a function
+    
+    measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
+    measurement_list = measurements_extract[0]
+    print(field_val)
+    dictionery_measure = dict()
+    l_m = []
+    for l in range(len(measurement_list)):
+        dictionery_measure.update(dict(measurements_extract[0][l]))
+        for key,value in dictionery_measure.items():
+            l_m.append(value)
+            print(update_tag_key)
+            print(update_tag_value)
+
+            print(f"INSERT {value},{update_tag_key[0]}={update_tag_value[0]} {field_key}={field_val}")
+
+    
 
 # If --delete flag was added:
 
@@ -114,7 +140,12 @@ if args.delete == True:
 
 # If --update flag was added
 
-# if args.update == True:
+if args.update == True:
+    
+    update_tags(args.tag_key_list,args.tag_value_list,
+                args.insert_key, args.insert_value,
+                args.insert_field_key, args.insert_field_value
+                )
 
 
 
