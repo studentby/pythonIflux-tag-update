@@ -10,7 +10,7 @@ from influxdb import InfluxDBClient
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--config", help="config file absolute path")
+parser.add_argument("--config", help="config file absolute path",default="./config.json")
 parser.add_argument("--tag_key","--k", action='append',dest='tag_key_list', help="tag key")
 parser.add_argument("--tag_value","--v" ,action='append',dest='tag_value_list' ,help="tag value")
 
@@ -51,6 +51,15 @@ portNum = l_json[3]
 DB_name = l_json[4]
 ssl_connection = l_json[5]
 verify_ssl = l_json[6]
+
+userName=cred["influxdb"]["username"]
+userPassword=cred["influxdb"]["password"]
+hostName=cred["influxdb"]["host"]
+portNum=cred["influxdb"]["port"]
+DB_name=cred["influxdb"]["database"]
+ssl_connection=cred["influxdb"]["SSL"]
+verify_ssl=cred["influxdb"]["verify_ssl"]
+
 
 file.close()
 # Reading from JSON config END
