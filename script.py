@@ -1,10 +1,7 @@
 import json  
 import argparse
+from typing import Dict
 from influxdb import InfluxDBClient
-
-
-
-
 
 
 ## Gathering info from JSON config file:
@@ -36,6 +33,7 @@ cred = json.loads(file.read())
 pairs = cred["influxdb"].items()
 l_json = []
 # print('  Getting key, value:')
+
 for key,value in pairs:
     l_json.append(value)
 
@@ -46,7 +44,9 @@ userName = l_json[0]
 userPassword = l_json[1]
 hostName = l_json[2]
 portNum = l_json[3]
-DB_name = l_json[2]
+DB_name = l_json[4]
+ssl_connection = l_json[5]
+verify_ssl = l_json[6]
 
 file.close()
 # Reading from JSON config END
@@ -57,17 +57,15 @@ file.close()
 client = InfluxDBClient(host=hostName, port=portNum, username=userName , password=userPassword)
 
 # SSL conection: 
-# client = InfluxDBClient(host='hostName', port=portNum, username=userName, password=userPassword ssl=True, verify_ssl=True)
+# client = InfluxDBClient(host=hostName, port=portNum, username=userName, password=userPassword ssl=ssl_connection, verify_ssl=verify_ssl)
 
 
 database_list = client.get_list_database()
 
-# print(database_list)
 
+# For user to switch beetween databases, taken from JSON config
 
-# Can be changed for user to switch beetween databases
-print(DB_name)
-client.switch_database('sitespeed')
+client.switch_database(DB_name)
 
 
 # Deletion function
@@ -78,21 +76,37 @@ def tags_delete(TARGkey,TARGval):
         request_list = []
         for i in range(len(key)):
             join_request = f"\"{key[i]}\"" + "=" + '\'' + f"{value[i]}" + '\''
-            
+
             if i >= 1:                   
                     and_request = " AND " + join_request
                     request_list.append(and_request)
             else:
                 request_list.append(join_request)         
         join_query = ''.join(request_list)
-        print(join_query)
         # Show before dropping
-        print(client.query(f"SHOW SERIES WHERE {join_query}"))
-        # Drop data series
-        # print("Droping series")
-        # client.query(f"DROP SERIES WHERE {join_query}")
+        # print(client.query(f"SHOW SERIES WHERE {join_query}"))
 
-print(args.delete)
+        ## need to create separeted function for update operation
+        measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
+        measurement_list = measurements_extract[0]
+        print(len(measurement_list))
+        dictionery_measure = dict()
+        print(measurement_list)
+        l_m = []
+        for l in range(len(measurement_list)):
+            dictionery_measure.update(dict(measurements_extract[0][l]))
+            for key,value in dictionery_measure.items():
+                l_m.append(value)
+            print(l_m)
+
+                # print(dictionery_measure)
+
+        # Drop data series
+        # client.query(f"DROP SERIES WHERE {join_query}")
+        # print("Droping series executed")
+
+
+
 # If --delete flag was added:
 
 if args.delete == True:

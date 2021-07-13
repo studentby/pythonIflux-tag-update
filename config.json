@@ -3,7 +3,8 @@
     "password":"121212",
     "host": "172.20.0.2",
     "port": "8086",
-    "tags": "build=1,category=somePage_1",
-    "database": "sitespeed"
+    "database": "sitespeed",
+    "SSL": "True",
+    "verify_ssl": "True"    
   }
 }
