@@ -56,7 +56,6 @@ DB_name=cred["influxdb"]["database"]
 ssl_connection=cred["influxdb"]["SSL"]
 verify_ssl=cred["influxdb"]["verify_ssl"]
 
-
 ## Entering Data base with values from config
 
 # Localy checked connection to DB 
@@ -65,9 +64,7 @@ verify_ssl=cred["influxdb"]["verify_ssl"]
 # With SSL conection: 
 client = InfluxDBClient(host=hostName, port=portNum, username=userName, password=userPassword, ssl=ssl_connection, verify_ssl=verify_ssl)
 
-
 database_list = client.get_list_database()
-
 
 # For user to switch beetween databases, taken from JSON config
 
