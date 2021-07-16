@@ -68,48 +68,28 @@ client.switch_database(DB_name)
 
 ## Functions 
 
+def query(key,value):
+    request_list = []
+    for i in range(len(key)):
+        request_list.append(f"\"{key[i]}\"" + "=" + '\'' + f"{value[i]}" + '\'')        
+    join_query = ' AND '.join(request_list)
+    print(join_query)
+    return join_query
+
 # Deletion function
 
 def tags_delete(TARGkey,TARGval):
-        key = list(TARGkey)
-        value = list(TARGval)
-        request_list = []
-        for i in range(len(key)):
-            join_request = f"\"{key[i]}\"" + "=" + '\'' + f"{value[i]}" + '\''
-
-            if i >= 1:                   
-                    and_request = " AND " + join_request
-                    request_list.append(and_request)
-            else:
-                request_list.append(join_request)         
-        join_query = ''.join(request_list)
-
-        ## Separate join_query as a function (will be made in future versions)
-
-        # Show before dropping:
-        print(client.query(f"SHOW SERIES WHERE {join_query}"))
-        # Drop data series:
-        client.query(f"DROP SERIES WHERE {join_query}")
-        print("Droping series executed")
+    # Show before dropping:
+    join_query = query(TARGkey,TARGval)
+    # print(client.query(f"SHOW SERIES WHERE {join_query}"))
+    # Drop data series:
+    # client.query(f"DROP SERIES WHERE {join_query}")
+    print("Droping series executed")
 
 # Update function
 
 def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value, update_field_key, update_field_value):
-    key = list(TARGkey)
-    value = list(TARGval)
-    request_list = []
-    for i in range(len(key)):
-        join_request = f"\"{key[i]}\"" + "=" + '\'' + f"{value[i]}" + '\''
-
-        if i >= 1:                   
-                and_request = " AND " + join_request
-                request_list.append(and_request)
-        else:
-            request_list.append(join_request)         
-    join_query = ''.join(request_list)
-
-    ## Seperate join_query as a function (will be made in future versions)
-
+    join_query = query(TARGkey,TARGval)
     # Gathering all measurements from given tag_items into a list:
     measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
     measurement_list = measurements_extract[0]
@@ -122,10 +102,10 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value, update_field_
        # Running through all measurements and adding tags with fields:
         for key,value in dictionery_measure.items():
             write_data_list.append("{measurement},{tag_key}={tag_value} {field_key}={field_value}"
-            .format(measurement=value,tag_key=update_tag_key[0],tag_value=update_tag_value[0],field_key=update_field_key,field_value=update_field_value))
+            .format(measurement=value,tag_key=update_tag_key[0],tag_value=update_tag_value[0],
+                    field_key=update_field_key,field_value=update_field_value))
     # Command to add written list of queries:
     client.write_points(write_data_list, database=DB_name,protocol='line')
-    
 # If --delete flag was added:
 
 if args.delete == True:

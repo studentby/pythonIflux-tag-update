@@ -5,6 +5,6 @@
     "port": "8086",
     "database": "sitespeed",
     "SSL": "True",
-    "verify_ssl": "True"    
+    "verify_ssl": "True"  
   }
 }
