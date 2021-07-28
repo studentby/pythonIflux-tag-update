@@ -3,6 +3,7 @@ import argparse
 from influxdb import InfluxDBClient
 
 
+
 ## Gathering info from JSON config file:
 
 # Take arguments from terminal
