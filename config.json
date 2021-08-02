@@ -1,7 +1,7 @@
 {"influxdb": {
     "username":"admin",
     "password":"121212",
-    "host": "172.20.0.2",
+    "host": "172.17.0.1",
     "port": "8086",
     "database": "sitespeed",
     "SSL": "True",

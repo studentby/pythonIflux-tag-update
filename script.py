@@ -109,22 +109,23 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value, update_field_
     write_data_list= []
     for l in range(len(measurement_list)):
         dictionery_measure.update(dict(measurements_extract[0][l]))
-
        # Running through all measurements and adding tags with fields:
         for key,value in dictionery_measure.items():
-            write_data_list.append("{measurement},{tag_key}={tag_value} {field_key}={field_value}"
+            write_data_list.append("{measurement},{tag_key}={tag_value} {field_key}={field_value},{field_key}2={field_value}1" 
             .format(measurement=value,tag_key=update_tag_key[0],
             tag_value=update_tag_value[0],
             field_key=update_field_key,
             field_value=update_field_value))
+            ## Have to create an array of field values and keys to insert from existing measurements
+
+
     # Command to add written list of queries:
-        if args.test == True:    
+    if args.test == True:    
             print(write_data_list)
             print("Shows where to and what will be added")
-        elif args.prod == True:
+    elif args.prod == True:
             client.write_points(write_data_list, database=DB_name,protocol='line')
-            print("Made changes to series with provided tags")
-        else: print("Choose between --prod --test to execute or check ")
+    else: print("Choose between --prod --test to execute or check ")      
 
 def update_exec (write_data_list):
     client.write_points(write_data_list, database=DB_name,protocol='line')
