@@ -123,51 +123,7 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value, update_field_
             raw_measurement.append(value)
 
 
-    ## Storing result set of DB query
-    field_keys_extraction = list(client.query(f'SHOW FIELD KEYS FROM "{value}"'))
-    dictionery_field_keys = dict()
-    field_name_list = []
-
-    ## Taking all datasets
-
-    for field_len in range(len(field_keys_extraction[0])):
-        dictionery_field_keys.update(dict(field_keys_extraction[0][field_len]))
-        points_list = []
-        for field_key,field_name in dictionery_field_keys.items():
-            if field_name != "float":
-                field_name_list.append(field_name)
-                for measurement_len in range(len(raw_measurement)):
-                    rs = client.query(f'SELECT {field_name} FROM "{raw_measurement[measurement_len]}"')
-                    points = list(rs.get_points())
-                    points_list.append(points)
-        # print(points_list)    
-    print(len(points_list))
-        # print(points_list[0])
-                    # field_values.append(client.query(f'SELECT {field_name} FROM "{raw_measurement[measurement_len]}"'))
-    
-
-
-                    
-    # print(field_values[0])
-    
-
-    
-    # print(f"Generated string : {value},{update_tag_key[0]}={update_tag_value[0]} {field_values[0]}")
-    # print(len(field_values[0]))
-    ## Extracting field_values
-    dictionery_field_values = dict()
-    field_values_list = []
-    
-
-
-
-
-    
-            # writing_points = client.query(f'SELECT {} FROM {value}')
-            
-            ## Have to create an array of field values and keys to insert from existing measurements
-    # print(writing_points)
-    
+ 
     # Command to add written list of queries:
     if args.test == True:    
             # print(write_data_list)
