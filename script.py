@@ -1,6 +1,9 @@
 import json  
 import argparse
+from os import name
+from time import time
 from influxdb import InfluxDBClient
+from influxdb.resultset import ResultSet
 
 
 
@@ -104,24 +107,70 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value, update_field_
 
     measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
     measurement_list = measurements_extract[0]
-    
+    raw_measurement = []
+
     dictionery_measure = dict()
     write_data_list= []
     for l in range(len(measurement_list)):
         dictionery_measure.update(dict(measurements_extract[0][l]))
        # Running through all measurements and adding tags with fields:
         for key,value in dictionery_measure.items():
-            write_data_list.append("{measurement},{tag_key}={tag_value} {field_key}={field_value},{field_key}2={field_value}1" 
+            write_data_list.append("{measurement},{tag_key}={tag_value} {field_key}={field_value}" 
             .format(measurement=value,tag_key=update_tag_key[0],
             tag_value=update_tag_value[0],
             field_key=update_field_key,
             field_value=update_field_value))
+            raw_measurement.append(value)
+
+
+    ## Storing result set of DB query
+    field_keys_extraction = list(client.query(f'SHOW FIELD KEYS FROM "{value}"'))
+    dictionery_field_keys = dict()
+    field_name_list = []
+
+    ## Taking all datasets
+
+    for field_len in range(len(field_keys_extraction[0])):
+        dictionery_field_keys.update(dict(field_keys_extraction[0][field_len]))
+        points_list = []
+        for field_key,field_name in dictionery_field_keys.items():
+            if field_name != "float":
+                field_name_list.append(field_name)
+                for measurement_len in range(len(raw_measurement)):
+                    rs = client.query(f'SELECT {field_name} FROM "{raw_measurement[measurement_len]}"')
+                    points = list(rs.get_points())
+                    points_list.append(points)
+        # print(points_list)    
+    print(len(points_list))
+        # print(points_list[0])
+                    # field_values.append(client.query(f'SELECT {field_name} FROM "{raw_measurement[measurement_len]}"'))
+    
+
+
+                    
+    # print(field_values[0])
+    
+
+    
+    # print(f"Generated string : {value},{update_tag_key[0]}={update_tag_value[0]} {field_values[0]}")
+    # print(len(field_values[0]))
+    ## Extracting field_values
+    dictionery_field_values = dict()
+    field_values_list = []
+    
+
+
+
+
+    
+            # writing_points = client.query(f'SELECT {} FROM {value}')
+            
             ## Have to create an array of field values and keys to insert from existing measurements
-
-
+    # print(writing_points)
+    
     # Command to add written list of queries:
     if args.test == True:    
-            print(write_data_list)
+            # print(write_data_list)
             print("Shows where to and what will be added")
     elif args.prod == True:
             client.write_points(write_data_list, database=DB_name,protocol='line')
