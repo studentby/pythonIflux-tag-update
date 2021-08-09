@@ -1,6 +1,6 @@
 import json  
 import argparse
-from os import name
+from os import name, write
 from time import time
 from influxdb import InfluxDBClient
 from influxdb.resultset import ResultSet
@@ -28,8 +28,6 @@ update_group = parser.add_argument_group('update_group')
 update_group.add_argument('--update', action='store_true',default=False)
 update_group.add_argument('--insert_key','--ik', action='append', help="update key")
 update_group.add_argument('--insert_value','--iv', action='append', help="update value")
-update_group.add_argument('--insert_field_key','--ifk', help="insert key")
-update_group.add_argument('--insert_field_value','--ifv', help="insert value")
 
 
 
@@ -100,34 +98,74 @@ def tags_delete(TARGkey,TARGval):
 
 # Update function
 
-def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value, update_field_key, update_field_value):
+def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
     join_query = query(TARGkey,TARGval)
 
     # Gathering all measurements from given tag_items into a list:
-
     measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
-    measurement_list = measurements_extract[0]
     raw_measurement = []
 
     dictionery_measure = dict()
     write_data_list= []
-    for l in range(len(measurement_list)):
+    field_data_list = []
+
+    for l in range(len(measurements_extract[0])):
         dictionery_measure.update(dict(measurements_extract[0][l]))
+        ## Field key extraction
+        for field_key,field_val in dictionery_measure.items():
+            rs=client.query(f'SHOW FIELD KEYS FROM "{field_val}"')
+
+        ## Storing all measurements 
+        raw_measurement.append(field_val)  
+    field_data_list.append(list(rs.get_points()))
+    
+    ## Storing all field keys in a list
+    store_field_key_list = []
+    dictionaery_field_key = dict()
+    for length in range(len(field_data_list[0])):
+        dictionaery_field_key.update(field_data_list[0][length])
+        for field_key_dict,field_val_dict in dictionaery_field_key.items():
+            if field_val_dict !="float":
+                store_field_key_list.append(field_val_dict)
+
+    ## Get field values
+    for l in range(len(measurements_extract[0])):
+        dictionery_measure.update(dict(measurements_extract[0][l]))
+
        # Running through all measurements and adding tags with fields:
-        for key,value in dictionery_measure.items():
-            write_data_list.append("{measurement},{tag_key}={tag_value} {field_key}={field_value}" 
-            .format(measurement=value,tag_key=update_tag_key[0],
-            tag_value=update_tag_value[0],
-            field_key=update_field_key,
-            field_value=update_field_value))
-            raw_measurement.append(value)
+        for key,measurement_value in dictionery_measure.items():
+            field_value_list = []
+            for field_keys_in_list in range(len(store_field_key_list)):
+                rs_field_values = client.query(f'SELECT {store_field_key_list[field_keys_in_list]} FROM "{measurement_value}"')
+                rs_field_list = list(rs_field_values.get_points())
+            # print(rs_field_list)
+            
+                for item in rs_field_list:
+                    item[store_field_key_list[field_keys_in_list]]
+                    
+                    field_value_list.append(item[store_field_key_list[field_keys_in_list]])
 
 
- 
+
+                    write_data_list.append("{measurement},{tag_key}={tag_value} {field_key}={field_value}"
+                    .format(measurement=measurement_value,
+                    tag_key=update_tag_key[0],
+                    tag_value=update_tag_value[0],
+                    field_key=store_field_key_list[field_keys_in_list],
+                    field_value=item[store_field_key_list[field_keys_in_list]]))
+
+    
+
+
+
+
+
+
     # Command to add written list of queries:
     if args.test == True:    
-            # print(write_data_list)
-            print("Shows where to and what will be added")
+        print("Shows where to and what will be added")
+        print(write_data_list)
+
     elif args.prod == True:
             client.write_points(write_data_list, database=DB_name,protocol='line')
     else: print("Choose between --prod --test to execute or check ")      
@@ -143,6 +181,5 @@ if args.delete == True:
 
 if args.update == True:
     update_tags(args.tag_key_list,args.tag_value_list,
-                args.insert_key, args.insert_value,
-                args.insert_field_key, args.insert_field_value
+                args.insert_key, args.insert_value               
                 )
