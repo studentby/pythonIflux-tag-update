@@ -91,32 +91,32 @@ def tags_delete(TARGkey,TARGval):
     if args.test == True:
         print(client.query(f"SHOW SERIES WHERE {join_query}"))
     elif args.prod ==True:
+        # Drop data series:
         (client.query(f"DROP SERIES WHERE {join_query}"))
         print("Droping series executed")
-    # Drop data series:    
+        
     else: print("Choose between --prod --test to execute or check ")
 
-# Update function
+## Update function
 
 def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
     join_query = query(TARGkey,TARGval)
 
     # Gathering all measurements from given tag_items into a list:
     measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
-    raw_measurement = []
-
     dictionery_measure = dict()
     write_data_list= []
     field_data_list = []
-    
+    store_tags_dict = dict()
+    store_tags_key_value = []
+
+
     for l in range(len(measurements_extract[0])):
         dictionery_measure.update(dict(measurements_extract[0][l]))
         ## Field key extraction
         for field_key,field_val in dictionery_measure.items():
             rs=client.query(f'SHOW FIELD KEYS FROM "{field_val}"')
-
-        ## Storing all measurements 
-        raw_measurement.append(field_val)  
+    
     field_data_list.append(list(rs.get_points()))
 
     ## Storing all field keys in a list
@@ -134,37 +134,56 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
 
        # Running through all measurements and adding tags with fields:
         for key,measurement_value in dictionery_measure.items():
-            field_value_list = []
-            for field_keys_in_list in range(len(store_field_key_list)):
-                rs_field_values = client.query(f'SELECT {store_field_key_list[field_keys_in_list]} FROM "{measurement_value}"')
-                rs_field_list = list(rs_field_values.get_points())
-            # print(rs_field_list)
             
-                for item in rs_field_list:
-                    item[store_field_key_list[field_keys_in_list]]
-                    
-                    field_value_list.append(item[store_field_key_list[field_keys_in_list]])
 
+            tags_extract = list(client.query(f'SHOW TAG KEYS FROM "{measurement_value}"'))
+            for length in range(len(tags_extract[0])):
+                store_tags_dict.update(dict(tags_extract[0][length]))
 
+                ## Got all tag keys
+                for tag,tag_key in store_tags_dict.items():
+                    tag_values_list = list(client.query(f'SHOW TAG VALUES WITH KEY="{tag_key}" WHERE {join_query}'))
+            
+                for length in range(len(tag_values_list[0])):
+                    for key,value in dict(tag_values_list[0][length]).items():
+                        store_tags_key_value.append(value)
+                ## Tag_key/Tag_value pair
 
-                    write_data_list.append("{measurement},{tag_key}={tag_value} {field_key}={field_value}"
+        ## Slice store_tags_key_value list in two lists, separate key value 
+        tag_keys_list = []
+        tag_values_list = []
+        for i in range(len(store_tags_key_value)):
+            if i%2 == 0:
+                tag_keys_list.append(store_tags_key_value[i])
+            else: 
+                tag_values_list.append(store_tags_key_value[i])
+
+        for index in range(len(tag_values_list)):
+            print(index)
+            print(tag_keys_list[index])
+            print(tag_values_list[index])
+            
+    
+        for field_keys_in_list in range(len(store_field_key_list)):
+            rs_field_values = client.query(f'SELECT {store_field_key_list[field_keys_in_list]} FROM "{measurement_value}" WHERE {join_query}')
+            rs_field_list = list(rs_field_values.get_points())
+        
+            for field_values in rs_field_list:
+                for index in range(len(tag_values_list)):
+                    write_data_list.append("{measurement},{tag_key}={tag_value},{keys_list}={values_list} {field_key}={field_value}"
                     .format(measurement=measurement_value,
                     tag_key=update_tag_key[0],
                     tag_value=update_tag_value[0],
+                    keys_list = tag_keys_list[index],
+                    values_list = tag_values_list[index], 
                     field_key=store_field_key_list[field_keys_in_list],
-                    field_value=item[store_field_key_list[field_keys_in_list]]))
-
+                    field_value=field_values[store_field_key_list[field_keys_in_list]]))
     
-
-
-
-
-
-
+    
     # Command to add written list of queries:
     if args.test == True:    
         print("Shows where to and what will be added")
-        print(write_data_list)
+        
 
     elif args.prod == True:
             client.write_points(write_data_list, database=DB_name,protocol='line')
