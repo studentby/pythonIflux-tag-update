@@ -108,7 +108,7 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
     dictionery_measure = dict()
     write_data_list= []
     field_data_list = []
-
+    
     for l in range(len(measurements_extract[0])):
         dictionery_measure.update(dict(measurements_extract[0][l]))
         ## Field key extraction
@@ -118,7 +118,7 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
         ## Storing all measurements 
         raw_measurement.append(field_val)  
     field_data_list.append(list(rs.get_points()))
-    
+
     ## Storing all field keys in a list
     store_field_key_list = []
     dictionaery_field_key = dict()
