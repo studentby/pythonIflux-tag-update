@@ -87,7 +87,7 @@ def query(key,value):
 
 def tags_delete(TARGkey,TARGval):
     join_query = query(TARGkey,TARGval)
-# Show Series to check
+    # Show Series to check
     if args.test == True:
         print(client.query(f"SHOW SERIES WHERE {join_query}"))
     elif args.prod ==True:
@@ -139,46 +139,44 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
             tags_extract = list(client.query(f'SHOW TAG KEYS FROM "{measurement_value}"'))
             for length in range(len(tags_extract[0])):
                 store_tags_dict.update(dict(tags_extract[0][length]))
-
                 ## Got all tag keys
                 for tag,tag_key in store_tags_dict.items():
                     tag_values_list = list(client.query(f'SHOW TAG VALUES WITH KEY="{tag_key}" WHERE {join_query}'))
-            
-                for length in range(len(tag_values_list[0])):
-                    for key,value in dict(tag_values_list[0][length]).items():
-                        store_tags_key_value.append(value)
-                ## Tag_key/Tag_value pair
 
-        ## Slice store_tags_key_value list in two lists, separate key value 
-        tag_keys_list = []
-        tag_values_list = []
-        for i in range(len(store_tags_key_value)):
-            if i%2 == 0:
-                tag_keys_list.append(store_tags_key_value[i])
-            else: 
-                tag_values_list.append(store_tags_key_value[i])
-
-        for index in range(len(tag_values_list)):
-            print(index)
-            print(tag_keys_list[index])
-            print(tag_values_list[index])
-            
+                    ## Tag_key/Tag_value pair
+                    print(len(tag_values_list))
+                    
+                    for list_len in range(len(tag_values_list)):
+                        for key,value in dict(tag_values_list[list_len]).items():
+                            store_tags_key_value.append(value)
+                    
+                        
+                        ## Slice store_tags_key_value list in two lists, separate key value 
+                        tag_keys_list = []
+                        tag_values_list = []
+                        for i in range(len(store_tags_key_value)):
+                            if i%2 == 0:
+                                tag_keys_list.append(store_tags_key_value[i])
+                            else: 
+                                tag_values_list.append(store_tags_key_value[i])
+            print(tag_keys_list)
+            print(tag_values_list)
     
-        for field_keys_in_list in range(len(store_field_key_list)):
-            rs_field_values = client.query(f'SELECT {store_field_key_list[field_keys_in_list]} FROM "{measurement_value}" WHERE {join_query}')
-            rs_field_list = list(rs_field_values.get_points())
-        
-            for field_values in rs_field_list:
-                for index in range(len(tag_values_list)):
+            for field_keys_in_list in range(len(store_field_key_list)):
+                rs_field_values = client.query(f'SELECT {store_field_key_list[field_keys_in_list]} FROM "{measurement_value}" WHERE {join_query}')
+                rs_field_list = list(rs_field_values.get_points())
+                
+                for field_values in rs_field_list:
+                    
                     write_data_list.append("{measurement},{tag_key}={tag_value},{keys_list}={values_list} {field_key}={field_value}"
                     .format(measurement=measurement_value,
                     tag_key=update_tag_key[0],
                     tag_value=update_tag_value[0],
-                    keys_list = tag_keys_list[index],
-                    values_list = tag_values_list[index], 
+                    keys_list = "key_list",
+                    values_list = "value_list", 
                     field_key=store_field_key_list[field_keys_in_list],
                     field_value=field_values[store_field_key_list[field_keys_in_list]]))
-    
+
     
     # Command to add written list of queries:
     if args.test == True:    
