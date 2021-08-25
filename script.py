@@ -2,8 +2,11 @@ import json
 import argparse
 from os import name, write
 from time import time
+from typing import Protocol
 from influxdb import InfluxDBClient
-from influxdb.resultset import ResultSet
+
+from datetime import datetime
+from time import mktime
 
 
 
@@ -102,13 +105,27 @@ def tags_delete(TARGkey,TARGval):
 def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
     join_query = query(TARGkey,TARGval)
 
+    ## Exrtacting time from measurenment
+    rs_time = client.query('SELECT time,max FROM "ttfb"')
+    rs_time_list = list(rs_time.get_points())
+    ## time extraction
+    time_field = []
+    for time in dict (rs_time_list[0]).values():
+        time_field.append(time)
+    time_value = time_field[0]
+
+    ## time to UNIX (EPOCH) conversion
+    date_time = datetime.strptime(time_value, "%Y-%m-%dT%H:%M:%S.%fZ")
+    date_time_microNONE = date_time.replace(microsecond=0)
+    # print(date_time)
+    unix_time = int(date_time_microNONE.timestamp())
+
+
     # Gathering all measurements from given tag_items into a list:
     measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
     dictionery_measure = dict()
     write_data_list= []
     field_data_list = []
-    store_tags_dict = dict()
-    store_tags_key_value = []
 
 
     for l in range(len(measurements_extract[0])):
@@ -118,7 +135,7 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
             rs=client.query(f'SHOW FIELD KEYS FROM "{field_val}"')
     
     field_data_list.append(list(rs.get_points()))
-
+    
     ## Storing all field keys in a list
     store_field_key_list = []
     dictionaery_field_key = dict()
@@ -127,61 +144,88 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
         for field_key_dict,field_val_dict in dictionaery_field_key.items():
             if field_val_dict !="float":
                 store_field_key_list.append(field_val_dict)
+    tag_values_list = []
+    tags_extract = []
+    
+    tag_set_list = []                           
 
-    ## Get field values
     for l in range(len(measurements_extract[0])):
         dictionery_measure.update(dict(measurements_extract[0][l]))
-
-       # Running through all measurements and adding tags with fields:
         for key,measurement_value in dictionery_measure.items():
             
-
-            tags_extract = list(client.query(f'SHOW TAG KEYS FROM "{measurement_value}"'))
-            for length in range(len(tags_extract[0])):
-                store_tags_dict.update(dict(tags_extract[0][length]))
-                ## Got all tag keys
-                for tag,tag_key in store_tags_dict.items():
-                    tag_values_list = list(client.query(f'SHOW TAG VALUES WITH KEY="{tag_key}" WHERE {join_query}'))
-
-                    ## Tag_key/Tag_value pair
-                    print(len(tag_values_list))
-                    
-                    for list_len in range(len(tag_values_list)):
-                        for key,value in dict(tag_values_list[list_len]).items():
-                            store_tags_key_value.append(value)
-                    
-                        
-                        ## Slice store_tags_key_value list in two lists, separate key value 
-                        tag_keys_list = []
-                        tag_values_list = []
-                        for i in range(len(store_tags_key_value)):
-                            if i%2 == 0:
-                                tag_keys_list.append(store_tags_key_value[i])
-                            else: 
-                                tag_values_list.append(store_tags_key_value[i])
-            print(tag_keys_list)
-            print(tag_values_list)
-    
+           
+                ## Additional parts of code
+            
+            rs_tags_extract = client.query(f'SHOW TAG KEYS FROM "{measurement_value}"')
+            tags_extract = list(rs_tags_extract.get_points())
+            
+            # print(measurement_value+"-------------------------------------")
+            for tags_index in tags_extract:
+                for value in tags_index.values():
+                    rs_tag_values = client.query(f'SHOW TAG VALUES FROM "{measurement_value}" WITH KEY="{value}" WHERE {join_query}')
+                    tag_values_list = list(rs_tag_values.get_points())
+                index_eql = 0
+                if tag_values_list == []:
+                    pass
+                else:
+                    for tagSetLength in range(len(tag_values_list)): 
+                        for Key,tagSet in dict(tag_values_list[tagSetLength]).items():
+                            index_eql = index_eql+1
+                            tag_set_list.append(tagSet)
+                            if index_eql == 1:
+                                tag_set_list.append('=')
+                        tag_set_list.append(',')
+            
+            joined_tag_set_list = ''.join(tag_set_list)
+            
+            ## Get field values 
             for field_keys_in_list in range(len(store_field_key_list)):
                 rs_field_values = client.query(f'SELECT {store_field_key_list[field_keys_in_list]} FROM "{measurement_value}" WHERE {join_query}')
                 rs_field_list = list(rs_field_values.get_points())
                 
+                
                 for field_values in rs_field_list:
-                    
-                    write_data_list.append("{measurement},{tag_key}={tag_value},{keys_list}={values_list} {field_key}={field_value}"
-                    .format(measurement=measurement_value,
-                    tag_key=update_tag_key[0],
-                    tag_value=update_tag_value[0],
-                    keys_list = "key_list",
-                    values_list = "value_list", 
-                    field_key=store_field_key_list[field_keys_in_list],
-                    field_value=field_values[store_field_key_list[field_keys_in_list]]))
 
-    
+                    write_data_list.append("{measurement},{tag_set_list}{tag_key}={tag_value}  {field_key}={field_value} {time_value}"
+                    .format(measurement=measurement_value,
+                    tag_key = update_tag_key[0],
+                    tag_value = update_tag_value[0],
+                    tag_set_list = joined_tag_set_list,
+                    field_key = store_field_key_list[field_keys_in_list],
+                    field_value = field_values[store_field_key_list[field_keys_in_list]],
+                    time_value = unix_time))
+            # print(joined_tag_set_list)
+            # print(tag_keys_list)
+            # print(tag_values_list)
+            
+            tag_set_list = []
+    time_field = []
+    for time in dict (rs_field_list[0]).values():
+        time_field.append(time)
+    time_value = time_field[0]
+
+    print(time_value)
+    # print(datetime.strptime(time_value, "%Y-%m-%d %H:%M:S%"))
+    date_time = datetime.strptime(time_value, "%Y-%m-%dT%H:%M:%S.%fZ")
+    unix_time = date_time.timestamp()
+    print(unix_time)
+
+    # now = datetime.now().timestamp()
+    # print(now)
+    # object_now = datetime.fromtimestamp(now)
+    # print(type(object_now))
+
     # Command to add written list of queries:
     if args.test == True:    
         print("Shows where to and what will be added")
+        # print(write_data_list)
+        # print(tag_keys_list)
+        # print(tag_values_list)
+        # print(len(tag_keys_list))
+        # print(len(tag_values_list))
         
+        
+            
 
     elif args.prod == True:
             client.write_points(write_data_list, database=DB_name,protocol='line')
