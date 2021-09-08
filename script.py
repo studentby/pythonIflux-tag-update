@@ -151,6 +151,13 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
     tags_extract = []
     tag_set_list = []                           
 
+    measurement_list = ['FirstVisualChange','first-contentful-paint','largestContentfulPaint','VisualComplete85','SpeedIndex','layoutShift']
+    for measure in range(len(measurement_list)):
+        print(measurement_list[measure])
+        median_values = client.query(f'SELECT median FROM "{measurement_list[measure]}" WHERE "summaryType"=\'summary\' AND "category"=\'desktop\' AND "env" =\'qa-hotpink\' AND "build" = \'999\'')
+        median_list = list(median_values)
+        print(median_list)
+
     for l in range(len(measurements_extract[0])):
         dictionery_measure.update(dict(measurements_extract[0][l]))
         for key,measurement_value in dictionery_measure.items():
@@ -165,7 +172,7 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
                     rs_tag_values = client.query(f'SHOW TAG VALUES FROM "{measurement_value}" WITH KEY="{value}" WHERE {join_query}')
                     tag_values_list = list(rs_tag_values.get_points())
                 
-                if len(tag_values_list) <2:
+                if len(tag_values_list) < 2:
                         
                     index_eql = 0
                     if tag_values_list == []:
@@ -174,9 +181,7 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
                         for tagSetLength in range(len(tag_values_list)):
                             for Key,tagSet in dict(tag_values_list[tagSetLength]).items():
                                 tag_set_list.append( tagSet )    
-
                                 index_eql = index_eql+1                        
-
                                 if index_eql == 1:
                                     tag_set_list.append('=')
                     if index_eql == 2:
@@ -186,6 +191,7 @@ def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
                 
             joined_tag_set_list = ''.join(tag_set_list)
             ## Get field values 
+
             for field_keys_in_list in range(len(store_field_key_list)):
                 rs_field_values = client.query(f'SELECT {store_field_key_list[field_keys_in_list]} FROM "{measurement_value}" WHERE {join_query}')
                 rs_field_list = list(rs_field_values.get_points())
