@@ -4,8 +4,9 @@ from os import name, write
 from time import time
 from typing import Protocol
 from influxdb import InfluxDBClient
+import statistics
 
-from datetime import datetime
+from datetime import date, datetime
 from time import mktime
 
 
@@ -82,10 +83,18 @@ client.switch_database(DB_name)
 def query(key,value):
     request_list = []
     for i in range(len(key)):
-        request_list.append(f"\"{key[i]}\"" + "=" + '\'' + f"{value[i]}" + '\'')        
+        request_list.append(f"\"{key[i]}\"" + "=" + f"'{value[i]}'")
     join_query = ' AND '.join(request_list)
     return join_query
 
+# Gather query for summary results
+
+def query_tags(key,value):
+    request_list_tags = []
+    for i in range(len(key)):
+        request_list_tags.append(f"{key[i]}={value[i]}")
+    join_query_tags = ' AND '.join(request_list_tags)
+    return join_query_tags
 # Deletion function
 
 def tags_delete(TARGkey,TARGval):
@@ -104,129 +113,120 @@ def tags_delete(TARGkey,TARGval):
 
 def update_tags(TARGkey,TARGval, update_tag_key, update_tag_value):
     join_query = query(TARGkey,TARGval)
-
-    # ## Exrtacting time from measurenment
-    # rs_time = client.query(f'SELECT time,max FROM "workerStart" WHERE {join_query}')
-    # rs_time_list = list(rs_time.get_points())
-    # ## time extraction
-    # print(rs_time_list)
-    # time_field = []
-    # for time in dict (rs_time_list[0]).values():
-    #     time_field.append(time)
-    # time_value = time_field[0]
+    join_query_tags = query_tags(TARGkey,TARGval)
+    ## Exrtacting time from measurenment
+    rs_time = client.query(f'SELECT median FROM "SpeedIndex" WHERE {join_query}')
+    rs_time_list = list(rs_time.get_points())
+    ## time extraction
+    time_field = []
+    for time in dict (rs_time_list[0]).values():
+        time_field.append(time)
+    time_value = time_field[0]
     
-    # ## time to UNIX (EPOCH) conversion
-    # date_time = datetime.strptime(time_value, "%Y-%m-%dT%H:%M:%S.%fZ")
-    # unix_time = date_time.timestamp()
-    
-
-    # print(datetime.fromtimestamp(unix_time))
-    
-    
-
-    # Gathering all measurements from given tag_items into a list:
-    measurements_extract = list(client.query(f"SHOW MEASUREMENTS WHERE {join_query}"))
-    dictionery_measure = dict()
-    write_data_list= []
-    field_data_list = []
-
-
-    for l in range(len(measurements_extract[0])):
-        dictionery_measure.update(dict(measurements_extract[0][l]))
-        ## Field key extraction
-        for field_key,field_val in dictionery_measure.items():
-            rs=client.query(f'SHOW FIELD KEYS FROM "{field_val}"')
-    
-    field_data_list.append(list(rs.get_points()))
-    
-    ## Storing all field keys in a list
-    store_field_key_list = []
-    dictionaery_field_key = dict()
-    for length in range(len(field_data_list[0])):
-        dictionaery_field_key.update(field_data_list[0][length])
-        for field_key_dict,field_val_dict in dictionaery_field_key.items():
-            if field_val_dict !="float":
-                store_field_key_list.append(field_val_dict)
-    tag_values_list = []
-    tags_extract = []
-    tag_set_list = []                           
-
-    measurement_list = ['FirstVisualChange','first-contentful-paint','largestContentfulPaint','VisualComplete85','SpeedIndex','layoutShift']
+    ## time to UNIX (EPOCH) conversion
+    date_time = datetime.strptime(time_value, "%Y-%m-%dT%H:%M:%S.%fZ")
+    unix_time = date_time.timestamp() * 1000000000
+    print(int(unix_time))
+   
+    ## Approach for Summary results only
+    dictionaery_median = dict()
+    dictionaery_page_median = dict()
+    median_list_values = []
+    ## Summary measurements
+    measurement_list = ['FirstVisualChange','first-contentful-paint','renderTime','VisualComplete85','SpeedIndex','layoutShift']
     for measure in range(len(measurement_list)):
-        print(measurement_list[measure])
-        median_values = client.query(f'SELECT median FROM "{measurement_list[measure]}" WHERE "summaryType"=\'summary\' AND "category"=\'desktop\' AND "env" =\'qa-hotpink\' AND "build" = \'999\'')
-        median_list = list(median_values)
-        print(median_list)
+        tag_set_list = []
+        write_data_list = []
+        pageSummary_median_list = []
 
-    for l in range(len(measurements_extract[0])):
-        dictionery_measure.update(dict(measurements_extract[0][l]))
-        for key,measurement_value in dictionery_measure.items():
-            
-            
-            rs_tags_extract = client.query(f'SHOW TAG KEYS FROM "{measurement_value}"')
-            tags_extract = list(rs_tags_extract.get_points())
-            
-            # print(measurement_value + "-------------------------------------")
-            for tags_index in tags_extract:
-                for value in tags_index.values():
-                    rs_tag_values = client.query(f'SHOW TAG VALUES FROM "{measurement_value}" WITH KEY="{value}" WHERE {join_query}')
-                    tag_values_list = list(rs_tag_values.get_points())
-                
-                if len(tag_values_list) < 2:
-                        
-                    index_eql = 0
-                    if tag_values_list == []:
-                        pass
-                    else:
-                        for tagSetLength in range(len(tag_values_list)):
-                            for Key,tagSet in dict(tag_values_list[tagSetLength]).items():
-                                tag_set_list.append( tagSet )    
-                                index_eql = index_eql+1                        
-                                if index_eql == 1:
-                                    tag_set_list.append('=')
-                    if index_eql == 2:
-                        tag_set_list.append(',')
-                ## Do not add tags to list of tags, bcs they fail as "duplicated tags" errors
-                else: pass
-                
-            joined_tag_set_list = ''.join(tag_set_list)
-            ## Get field values 
-
-            for field_keys_in_list in range(len(store_field_key_list)):
-                rs_field_values = client.query(f'SELECT {store_field_key_list[field_keys_in_list]} FROM "{measurement_value}" WHERE {join_query}')
-                rs_field_list = list(rs_field_values.get_points())
-                
-                for field_values in rs_field_list:
-
-                    write_data_list.append("{measurement},{tag_set_list}{tag_key}={tag_value}  {field_key}={field_value}"
-                    .format(measurement=measurement_value,
-                    tag_key = update_tag_key[0],
-                    tag_value = update_tag_value[0],
-                    tag_set_list = joined_tag_set_list,
-                    field_key = store_field_key_list[field_keys_in_list],
-                    field_value = field_values[store_field_key_list[field_keys_in_list]]
-                    ))
-            # print(joined_tag_set_list)
-            # print(tag_keys_list)
-            # print(tag_values_list)
-            
-            tag_set_list = []
-
-    # Command to add written list of queries:
-    if args.test == True:    
-        print("Shows where to and what will be added")
-        # print(write_data_list)
-        # print(tag_keys_list)
-        # print(tag_values_list)
-        # print(len(tag_keys_list))
-        # print(len(tag_values_list))
+        # Gathering other tag sets
+        rs_tags_extract = client.query(f'SHOW TAG KEYS FROM "{measurement_list[measure]}"')
+        tags_extract = list(rs_tags_extract.get_points())
         
-        
+        for tags_index in tags_extract:
+            for value in tags_index.values():
+                rs_tag_values = client.query(f'SHOW TAG VALUES FROM "{measurement_list[measure]}" WITH KEY="{value}" WHERE {join_query}')
+                tag_values_list = list(rs_tag_values.get_points())
             
+            if len(tag_values_list) < 2:
+                    
+                index_eql = 0
+                if tag_values_list == []:
+                    pass
+                else:
+                    for tagSetLength in range(len(tag_values_list)):
+                        for Key,tagSet in dict(tag_values_list[tagSetLength]).items():
+                            tag_set_list.append( tagSet )
+                            index_eql = index_eql+1                        
+                            if index_eql == 1:
+                                tag_set_list.append('=')
+                if index_eql == 2:
+                    tag_set_list.append(',')
+            ## Do not add tags to list of tags, bcs they fail as "duplicated tags" errors
+            else: pass    
+        joined_tag_set_list = ''.join(tag_set_list)
+        # there are VisualComplete85 SpeedIndex FirstVisualChange metrics have summary results, others needs to be measured medians of pages tested
 
-    elif args.prod == True:
-            client.write_points(write_data_list, database=DB_name,protocol='line')
-    else: print("Choose between --prod --test to execute or check ")      
+        median_values = client.query(f'SELECT median FROM "{measurement_list[measure]}" WHERE "summaryType"=\'pageSummary\' AND {join_query}')
+        median_list = list(median_values.get_points())
+        
+        # query to extract requeried medians and remove time field (included i as index to filter out)
+        i = 0
+        median_list_values = []
+        if median_list == []:
+            # largestContentfulPaint requres speciall treatment
+
+            if measurement_list[measure] =='largestContentfulPaint':
+                page_median = client.query(f'SELECT median FROM "{measurement_list[measure]}" WHERE "summaryType"=\'pageSummary\' AND "statistics"=\'googleWebVitals\' {join_query}')
+            else:
+            # other metrics are gathered with page Summary and calculated median
+                page_median = client.query(f'SELECT median FROM "{measurement_list[measure]}" WHERE "summaryType"=\'pageSummary\' AND {join_query}')
+            page_median_list = list(page_median.get_points())
+            
+            for median_len in range(len(page_median_list)):
+                dictionaery_page_median.update(dict(page_median_list[median_len]))
+            # Median calculation
+                for median in dictionaery_page_median.values():
+                    if i%2 == 0:
+                        pageSummary_median_list.append(median)
+                        median_list_values.append(statistics.median(pageSummary_median_list))
+                        median_page_summary = statistics.median(median_list_values)
+
+            write_data_list.append("{measuremnt},{tag_set}release=GB median={summary_median} {time}".format(
+            measuremnt = measurement_list[measure],
+            summary_median = median_page_summary,
+            query_tags = join_query_tags,
+            tag_set = joined_tag_set_list,
+            time = int(unix_time)
+                )
+            )
+        else:
+            for length in range(len(median_list)):
+                dictionaery_median.update(dict(median_list[length]))
+
+                for median in dictionaery_median.values():
+                    i = i + 1
+                    if i%2 == 0:
+                        median_list_values.append(median)
+                        median_summary = statistics.median(median_list_values)
+            write_data_list.append("{measuremnt},{tag_set}release=GB median={summary_median} {time}".format(
+            measuremnt = measurement_list[measure],
+            summary_median = median_summary,
+            query_tags = join_query_tags,
+            tag_set = joined_tag_set_list,
+            time = int(unix_time)
+                )
+            )
+    
+        # Command to add written list of queries:
+        if args.test == True:    
+            print("Shows where to and what will be added")
+            print(write_data_list[0])       
+            
+        elif args.prod == True:
+                print(write_data_list[0])   
+                client.write_points(write_data_list, database=DB_name,protocol='line')
+        else: print("Choose between --prod --test to execute or check ")    
 
 def update_exec (write_data_list):
     client.write_points(write_data_list, database=DB_name,protocol='line')
